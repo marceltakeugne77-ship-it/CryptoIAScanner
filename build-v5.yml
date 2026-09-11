@@ -1,0 +1,63 @@
+name: Build Crypto AI Scanner V5
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Récupérer le repository
+        uses: actions/checkout@v4
+
+      - name: Installer Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Décompresser le projet V5
+        run: |
+          unzip -o CryptoAIScanner_V5_GitHub_Telegram.zip
+          test -f CryptoAIScanner_V3/app/build.gradle
+          echo "Projet V5 décompressé avec succès."
+
+      - name: Configurer la compilation Java 17
+        working-directory: CryptoAIScanner_V3
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('app/build.gradle')
+          s = p.read_text()
+
+          if 'sourceCompatibility JavaVersion.VERSION_17' not in s:
+              s = s.replace(
+                  "android { namespace 'com.cryptoaiscanner'; compileSdk 35\n",
+                  "android { namespace 'com.cryptoaiscanner'; compileSdk 35\n"
+                  " compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }\n"
+              )
+
+          p.write_text(s)
+          print(p.read_text())
+          PY
+
+      - name: Installer Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.10.2'
+
+      - name: Compiler l'APK
+        working-directory: CryptoAIScanner_V3
+        run: gradle assembleDebug
+
+      - name: Publier l'APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: CryptoAIScanner-V5-APK
+          path: CryptoAIScanner_V3/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
